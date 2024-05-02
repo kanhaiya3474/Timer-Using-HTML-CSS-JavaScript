@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Countdown Timer with Purpose</title>
+    <style>
+        body {
+            background-color: black;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .timer {
+            font-size: 5em;
+            margin-bottom: 20px;
+        }
+
+        .input-group,
+        .purpose-dialog,
+        #controls {
+            margin-bottom: 20px;
+        }
+
+        input,
+        button {
+            font-size: 1em;
+            padding: 10px;
+            margin: 5px;
+        }
+
+        #controls,
+        .purpose-dialog {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="input-group" id="input-group">
+        <input type="number" id="hours" placeholder="Hours" min="0">
+        <input type="number" id="minutes" placeholder="Minutes" min="0">
+        <input type="number" id="seconds" placeholder="Seconds" min="0">
+        <button onclick="showPurposeDialog()">Start Timer</button>
+    </div>
+
+    <div class="purpose-dialog" id="purpose-dialog">
+        <input type="text" id="purpose" placeholder="What are you going to do?">
+        <button onclick="submitPurpose()">Submit</button>
+    </div>
+
+    <div class="timer" id="timer">00:00:00</div>
+
+    <div id="controls">
+        <button onclick="pauseTimer()">Pause</button>
+        <button onclick="resumeTimer()">Resume</button>
+        <button onclick="stopTimer()">Stop</button>
+    </div>
+    <audio id="bell" src="bell.mp3"></audio> <!-- You need to provide your own bell.mp3 file -->
+
+    <script>
+        let timerInterval;
+        let paused = false;
+        let time;
+        const timerElement = document.getElementById('timer');
+        const inputGroupElement = document.getElementById('input-group');
+        const purposeDialogElement = document.getElementById('purpose-dialog');
+        const controlsElement = document.getElementById('controls');
+        const bell = document.getElementById('bell');
+
+        function showPurposeDialog() {
+            purposeDialogElement.style.display = 'block';
+            inputGroupElement.style.display = 'none';
+        }
+
+        function submitPurpose() {
+            const purpose = document.getElementById('purpose').value;
+            if (!purpose) {
+                alert('Please enter the purpose for the timer.');
+                return;
+            }
+            purposeDialogElement.style.display = 'none';
+            controlsElement.style.display = 'block';
+            startTimer(purpose);
+        }
+
+        function startTimer(purpose) {
+            const hours = parseInt(document.getElementById('hours').value) || 0;
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            time = hours * 3600 + minutes * 60 + seconds;
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 1000);
+
+            // Increase font size when timer starts
+            timerElement.style.fontSize = '10em';
+
+            // Store the purpose and timer data in Google Sheets
+            storeDataInGoogleSheets(purpose, hours, minutes, seconds);
+        }
+
+        function updateTimer() {
+            // Timer update logic
+            if (!paused) {
+                const h = Math.floor(time / 3600);
+                const m = Math.floor((time % 3600) / 60);
+                const s = time % 60;
+
+                timerElement.textContent =
+                    (h < 10 ? '0' + h : h) + ':' +
+                    (m < 10 ? '0' + m : m) + ':' +
+                    (s < 10 ? '0' + s : s);
+
+                if (time <= 0) {
+                    clearInterval(timerInterval);
+                    bell.play();
+                    inputGroupElement.style.display = 'block';
+                    controlsElement.style.display = 'none';
+                } else {
+                    time--;
+                }
+            }
+        }
+
+        function pauseTimer() {
+            paused = true;
+            controlsElement.innerHTML = '<button onclick="resumeTimer()">Resume</button><button onclick="stopTimer()">Stop</button>';
+        }
+
+        function resumeTimer() {
+            paused = false;
+            controlsElement.innerHTML = '<button onclick="pauseTimer()">Pause</button><button onclick="stopTimer()">Stop</button>';
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+            inputGroupElement.style.display = 'block';
+            controlsElement.style.display = 'none';
+            const hours = parseInt(document.getElementById('hours').value) || 0;
+            const minutes = parseInt(document.getElementById('minutes').value) || 0;
+            const seconds = parseInt(document.getElementById('seconds').value) || 0;
+            
+        }
+
+        // Add pauseTimer, resumeTimer, and stopTimer functions
+
+        function storeDataInGoogleSheets(purpose, hours, minutes, seconds) {
+            const scriptUrl = 'https://script.google.com/macros/s/AKfycby_9f7GutPrIfBNavox6gKgUWgoUW0AxljWPNmMrTj2v00mQDMgWO8rHEz2jLQ2tIVFEQ/exec';
+            const formData = new FormData();
+            formData.append('purpose', purpose);
+            formData.append('hours', hours);
+            formData.append('minutes', minutes);
+            formData.append('seconds', seconds);
+
+            formData.append('date', new Date().toLocaleDateString());
+
+            fetch(scriptUrl, { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => console.log(data))
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+
+</body>
+
+</html>
